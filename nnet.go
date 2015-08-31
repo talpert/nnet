@@ -4,8 +4,13 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"os"
-	"source.datanerd.us/talpert/nnet/neuron"
+	"source.datanerd.us/talpert/nnet/simplenet"
 )
+
+type Network interface {
+	New(int)
+	Run()
+}
 
 func init() {
 	var (
@@ -21,24 +26,28 @@ func init() {
 
 func main() {
 	log.Info("starting")
-	// inputVals := []float64{1.0, 1.0}
 	sampleData := [][]float64{
-		[]float64{1.0, 1.0},
-		[]float64{1.0, 0.0},
-		[]float64{0.0, 1.0},
-		[]float64{0.0, 0.0},
+		[]float64{1, 1},
+		[]float64{1, 0},
+		[]float64{0, 1},
+		[]float64{0, 0},
 	}
-	neu := neuron.New(2, []float64{0.5, 0.5})
-	go neu.Run()
+	// layout := [][][]float64{
+	// 	{{0.5, 0.5}, {0.5, 0.5}},
+	// 	{{0.5, 0.5}},
+	// }
+	net, err := simplenet.New(2, [][]float64{
+		{0.5, 0.5},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 	for _, inputVals := range sampleData {
-		for i, ch := range neu.Inputs {
-			log.Debugf("Input: %f", inputVals[i])
-			ch <- inputVals[i]
-		}
-
-		log.Debug("waiting for ouput")
-		ret := <-neu.Output
 		log.Infof("Inputs: %v", inputVals)
+		ret, err := net.Run(inputVals)
+		if err != nil {
+			log.Fatal(err)
+		}
 		log.Infof("Result: %f", ret)
 	}
 	os.Exit(0)
