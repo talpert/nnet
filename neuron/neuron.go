@@ -16,11 +16,6 @@ type Neuron struct {
 	Outputs []chan float64
 }
 
-type InputNode struct {
-	Name      string
-	Listeners []chan float64
-}
-
 func New(inputNodes []Node, weights []float64, name string) *Neuron {
 	n := &Neuron{}
 	log.Debugf("Creating new neuron %s", name)
@@ -44,26 +39,6 @@ func (n *Neuron) AddListener(listener chan float64) {
 
 func (n *Neuron) In(v float64) {
 	// meet the interface requirement
-}
-
-func NewInputNode(name string) *InputNode {
-	log.Debugf("create new input node %s", name)
-	n := &InputNode{}
-	n.Name = name
-	n.Listeners = []chan float64{}
-	return n
-}
-
-func (n *InputNode) AddListener(listener chan float64) {
-	n.Listeners = append(n.Listeners, listener)
-}
-
-func (n *InputNode) In(value float64) {
-	log.Debugf("%s: posting input %f to %d Listeners.", n.Name, value, len(n.Listeners))
-	for _, ch := range n.Listeners {
-		// log.Debugf("%s: posting %f to listener", n.Name, value)
-		ch <- value
-	}
 }
 
 func (n *Neuron) Run() {
