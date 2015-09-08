@@ -3,30 +3,49 @@ package simplenet
 import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	//	"reflect"
 	"source.datanerd.us/talpert/nnet/neuron"
 )
 
 type SimpleNet struct {
 	NumInputs  int
-	NumLayers  int
-	InputLayer []*neuron.InputNode
-	OutputNode *neuron.Neuron
-	Neu        *neuron.Neuron
+	InputLayer []neuron.Node
+	Output     chan float64
 }
 
-func New(numInputs int, weights [][]float64) (*SimpleNet, error) {
+func New(numInputs int, weights [][][]float64) (*SimpleNet, error) {
 	log.Debug("New network")
 	log.Debugf("Network structure: %v", weights)
-	if numInputs != len(weights[0]) {
-		return nil, fmt.Errorf("Number of inputs: %d does not match number of weights: %d",
-			numInputs, len(weights[0]))
+	validEr := ValidateWeights(weights, numInputs)
+	if validEr != nil {
+		return nil, validEr
 	}
 	s := &SimpleNet{}
 	s.NumInputs = numInputs
-	s.NumLayers = len(weights)
-	s.InputLayer, s.OutputNode = ConstructNet(numInputs, weights)
+	log.Debugf("Layers found: %d", len(weights))
+	s.InputLayer, s.Output = ConstructNet(numInputs, weights)
 
 	return s, nil
+}
+
+func ValidateWeights(weights [][][]float64, numIn int) error {
+	for i, w := range weights[0] {
+		if numIn != len(w) {
+			return fmt.Errorf(
+				"Number of inputs: %d does not match number of weights: %d on node %d",
+				numIn, len(w), i)
+		}
+	}
+	for i := 1; i < len(weights); i++ {
+		for j, w := range weights[i] {
+			if len(w) != len(weights[i-1]) {
+				return fmt.Errorf(
+					"Number of nodes in layer %d: %d does not match number of weights: %d on node %d of layer %d",
+					i-1, len(weights[i-1]), len(w), j, i)
+			}
+		}
+	}
+	return nil
 }
 
 func (s *SimpleNet) Run(inputVals []float64) (float64, error) {
@@ -41,23 +60,35 @@ func (s *SimpleNet) Run(inputVals []float64) (float64, error) {
 	}
 
 	log.Debug("waiting for ouput")
-	return <-s.OutputNode.Outputs[0], nil
+	return <-s.Output, nil
 }
 
-func ConstructNet(numInputs int, weights [][]float64) ([]*neuron.InputNode, *neuron.Neuron) {
-	log.Debugf("Constructing new net with %d inputs", numInputs)
+func ConstructNet(numInputs int, weights [][][]float64) ([]neuron.Node, chan float64) {
+	log.Infof("Constructing new net with %d inputs and %d layers", numInputs, len(weights))
 	// create input nodes
-	inNodes := make([]*neuron.InputNode, numInputs)
-	numNodes := len(weights)
-	// listenTo := make([]chan float64, numInputs)
+	inNodes := make([]neuron.Node, numInputs)
+	log.Debug("Creating input layer")
 	for i := 0; i < numInputs; i++ {
-		log.Debugf("creating input node #%d with %d listeners", i, numNodes)
-		inNodes[i] = neuron.NewInputNode(numNodes)
-		// listenTo[i] = inNodes[i].Listeners[0]
+		log.Debugf("creating input node #%d", i)
+		inNodes[i] = neuron.NewInputNode(fmt.Sprintf("I(%d)", i))
 	}
 
-	outNeuron := neuron.New(inNodes, 1, weights[0])
-	go outNeuron.Run()
-	//create other layers
-	return inNodes, outNeuron
+	// create middle layers
+	previous := inNodes
+	for i := 0; i < len(weights); i++ { // for each layer
+		log.Debugf("Creating layer %d", i)
+		layer := []neuron.Node{}
+		for j := 0; j < len(weights[i]); j++ { // for each node in layer
+			log.Debugf("Creating node %d in layer %d with weights %v", j, i, weights[i][j])
+			current := neuron.New(previous, weights[i][j], fmt.Sprintf("N(%d:%d)", i, j))
+			layer = append(layer, current)
+			go current.Run()
+		}
+		previous = layer
+	}
+
+	log.Debugf("Net has %d outputs", len(previous))
+	output := make(chan float64)
+	previous[0].AddListener(output)
+	return inNodes, output
 }

@@ -6,43 +6,51 @@ import (
 
 type Node interface {
 	AddListener(chan float64)
+	In(float64)
 }
 
 type Neuron struct {
+	Name    string
 	Weights []float64
 	Inputs  []chan float64
 	Outputs []chan float64
 }
 
 type InputNode struct {
+	Name      string
 	Listeners []chan float64
 }
 
-func New(inputNodes []*InputNode, numOutputs int, weights []float64) *Neuron {
+func New(inputNodes []Node, weights []float64, name string) *Neuron {
 	n := &Neuron{}
-	log.Info("Creating new neuron")
+	log.Debugf("Creating new neuron %s", name)
+	n.Name = name
 	n.Inputs = make([]chan float64, len(inputNodes))
-	n.Outputs = make([]chan float64, numOutputs)
+	n.Outputs = []chan float64{}
+	// hook into the previous layer
 	for i, input := range inputNodes {
+		log.Debugf("%s: hooking into input %d", n.Name, i)
 		n.Inputs[i] = make(chan float64)
 		input.AddListener(n.Inputs[i])
-	}
-	for i := 0; i < numOutputs; i++ {
-		n.Outputs[i] = make(chan float64)
 	}
 	n.Weights = weights
 
 	return n
 }
 
-func NewInputNode(numListeners int) *InputNode {
-	log.Debugf("create new input node with %d listeners", numListeners)
+func (n *Neuron) AddListener(listener chan float64) {
+	n.Outputs = append(n.Outputs, listener)
+}
+
+func (n *Neuron) In(v float64) {
+	// meet the interface requirement
+}
+
+func NewInputNode(name string) *InputNode {
+	log.Debugf("create new input node %s", name)
 	n := &InputNode{}
+	n.Name = name
 	n.Listeners = []chan float64{}
-	//make([]chan float64, numListeners)
-	// for i := 0; i < numListeners; i++ {
-	// 	n.Listeners[i] = make(chan float64)
-	// }
 	return n
 }
 
@@ -51,27 +59,30 @@ func (n *InputNode) AddListener(listener chan float64) {
 }
 
 func (n *InputNode) In(value float64) {
-	log.Debugf("posting input %f to %d Listeners.", value, len(n.Listeners))
+	log.Debugf("%s: posting input %f to %d Listeners.", n.Name, value, len(n.Listeners))
 	for _, ch := range n.Listeners {
-		log.Debugf("posting %f to listener", value)
+		// log.Debugf("%s: posting %f to listener", n.Name, value)
 		ch <- value
 	}
 }
 
 func (n *Neuron) Run() {
-	log.Info("Neuron started")
+	log.Infof("Neuron %s started", n.Name)
 	for {
 		sumIn := 0.0
-		log.Debugf("starting to wait for inputs. Expecting %d", len(n.Inputs))
+		// log.Debugf("starting to wait for inputs. Expecting %d", len(n.Inputs))
 		// each input only read once
 		for i, in := range n.Inputs {
-			log.Debug("waiting for input")
+			log.Debugf("%s: waiting for input %d", n.Name, i)
 			sumIn += n.Weights[i] * <-in
-			log.Debugf("got input. sum is: %f", sumIn)
+			log.Debugf("%s: got input %d. sum is: %f", n.Name, i, sumIn)
 		}
-		log.Debugf("Sum of inputs is: %f", sumIn)
+		log.Debugf("%s: Sum of %d inputs is: %f", n.Name, len(n.Inputs), sumIn)
 		output := Transfer(sumIn)
+		// try to parallelize this so calculations are not blocked
+		log.Debugf("%s: posting %f to %d Listeners.", n.Name, output, len(n.Outputs))
 		for _, out := range n.Outputs {
+			// log.Debugf("%s: posting %f to listener", n.Name, output)
 			out <- output
 		}
 	}
