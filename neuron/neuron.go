@@ -54,7 +54,7 @@ func (n *Neuron) Run() {
 			log.Debugf("%s: got input %d. sum is: %f", n.Name, i, sumIn)
 		}
 		log.Debugf("%s: Sum of %d inputs is: %f", n.Name, len(n.Inputs), sumIn)
-		output := lib.Transfer(sumIn)
+		output := lib.Sigmoid(sumIn)
 		// try to parallelize this so calculations are not blocked
 		log.Debugf("%s: posting %f to %d Listeners.", n.Name, output, len(n.Outputs))
 		for _, out := range n.Outputs {

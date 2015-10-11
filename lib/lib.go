@@ -2,6 +2,7 @@ package lib
 
 import (
 	"fmt"
+	"math"
 )
 
 func ValidateWeights(weights [][][]float64, numInputs int) error {
@@ -29,4 +30,8 @@ func Transfer(in float64) float64 {
 		return 1.0
 	}
 	return 0.0
+}
+
+func Sigmoid(in float64) float64 {
+	return in / math.Sqrt(1+math.Pow(in, 2))
 }
