@@ -4,6 +4,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	//	"reflect"
+	"source.datanerd.us/talpert/nnet/lib"
 	"source.datanerd.us/talpert/nnet/neuron"
 )
 
@@ -16,8 +17,7 @@ type SimpleNet struct {
 func New(numInputs int, weights [][][]float64) (*SimpleNet, error) {
 	log.Debug("New network")
 	log.Debugf("Network structure: %v", weights)
-	validEr := ValidateWeights(weights, numInputs)
-	if validEr != nil {
+	if validEr := lib.ValidateWeights(weights, numInputs); validEr != nil {
 		return nil, validEr
 	}
 	s := &SimpleNet{}
@@ -26,26 +26,6 @@ func New(numInputs int, weights [][][]float64) (*SimpleNet, error) {
 	s.InputLayer, s.Output = ConstructNet(numInputs, weights)
 
 	return s, nil
-}
-
-func ValidateWeights(weights [][][]float64, numIn int) error {
-	for i, w := range weights[0] {
-		if numIn != len(w) {
-			return fmt.Errorf(
-				"Number of inputs: %d does not match number of weights: %d on node %d",
-				numIn, len(w), i)
-		}
-	}
-	for i := 1; i < len(weights); i++ {
-		for j, w := range weights[i] {
-			if len(w) != len(weights[i-1]) {
-				return fmt.Errorf(
-					"Number of nodes in layer %d: %d does not match number of weights: %d on node %d of layer %d",
-					i-1, len(weights[i-1]), len(w), j, i)
-			}
-		}
-	}
-	return nil
 }
 
 func (s *SimpleNet) Run(inputVals []float64) (float64, error) {

@@ -2,6 +2,7 @@ package neuron
 
 import (
 	log "github.com/Sirupsen/logrus"
+	"source.datanerd.us/talpert/nnet/lib"
 )
 
 type Node interface {
@@ -53,7 +54,7 @@ func (n *Neuron) Run() {
 			log.Debugf("%s: got input %d. sum is: %f", n.Name, i, sumIn)
 		}
 		log.Debugf("%s: Sum of %d inputs is: %f", n.Name, len(n.Inputs), sumIn)
-		output := Transfer(sumIn)
+		output := lib.Transfer(sumIn)
 		// try to parallelize this so calculations are not blocked
 		log.Debugf("%s: posting %f to %d Listeners.", n.Name, output, len(n.Outputs))
 		for _, out := range n.Outputs {
@@ -61,11 +62,4 @@ func (n *Neuron) Run() {
 			out <- output
 		}
 	}
-}
-
-func Transfer(in float64) float64 {
-	if in > 0.5 {
-		return 1.0
-	}
-	return 0.0
 }
