@@ -33,16 +33,20 @@ func (g *GridNet) Run(inputVals []float64) (float64, error) {
 			len(inputVals), g.NumInputs)
 	}
 	previous := inputVals
+	// all layers
 	for _, layer := range g.Nodes {
 		current := make([]float64, len(layer))
+		// all nodes
 		for j, node := range layer {
+			// all nodes in previous layer (no threshold)
 			for p := 0; p < len(previous); p++ {
-				if len(previous) != len(node.Weights) {
-					return 0, fmt.Errorf("Not enough weights to handle previous layer")
+				if len(previous) != len(node.Weights)-1 {
+					return 0, fmt.Errorf("Not enough weights %d to handle previous layer %d", len(node.Weights)-1, len(previous))
 				}
 				node.Value += previous[p] * node.Weights[p]
 			}
-			node.Value = lib.Transfer(node.Value)
+			// sigmoid including threshold
+			node.Value = lib.Sigmoid(node.Value + node.Weights[len(node.Weights)-1])
 			current[j] = node.Value
 		}
 		previous = current
@@ -53,8 +57,10 @@ func (g *GridNet) Run(inputVals []float64) (float64, error) {
 
 func ConstructNet(numInputs int, weights [][][]float64) [][]*Node {
 	nodes := make([][]*Node, len(weights))
+	// each layer
 	for i := 0; i < len(weights); i++ {
 		nodes[i] = make([]*Node, len(weights[i]))
+		// nodes
 		for j := 0; j < len(weights[i]); j++ {
 			nodes[i][j] = &Node{
 				Value:   0,

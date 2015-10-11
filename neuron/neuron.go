@@ -11,10 +11,11 @@ type Node interface {
 }
 
 type Neuron struct {
-	Name    string
-	Weights []float64
-	Inputs  []chan float64
-	Outputs []chan float64
+	Name         string
+	Weights      []float64
+	ThreshWeight float64
+	Inputs       []chan float64
+	Outputs      []chan float64
 }
 
 func New(inputNodes []Node, weights []float64, name string) *Neuron {
@@ -29,7 +30,8 @@ func New(inputNodes []Node, weights []float64, name string) *Neuron {
 		n.Inputs[i] = make(chan float64)
 		input.AddListener(n.Inputs[i])
 	}
-	n.Weights = weights
+	n.Weights = weights[:len(weights)-1]
+	n.ThreshWeight = weights[len(weights)-1]
 
 	return n
 }
@@ -53,6 +55,7 @@ func (n *Neuron) Run() {
 			sumIn += n.Weights[i] * <-in
 			log.Debugf("%s: got input %d. sum is: %f", n.Name, i, sumIn)
 		}
+		sumIn += n.ThreshWeight
 		log.Debugf("%s: Sum of %d inputs is: %f", n.Name, len(n.Inputs), sumIn)
 		output := lib.Sigmoid(sumIn)
 		// try to parallelize this so calculations are not blocked
